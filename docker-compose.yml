@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  superset:
+    build: .
+    container_name: local_superset
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SUPERSET_SECRET_KEY=kunci_rahasia_portofolio_kamu_12345
+      - TALISMAN_CONFIG={"content_security_policy":None}
+    command: >
+      sh -c "
+      superset db upgrade &&
+      superset fab create-admin --username admin --firstname Admin --lastname User --email admin@pipeline.local --password admin &&
+      superset init &&
+      superset run -p 8088 -h 0.0.0.0 --with-threads --reload --debugger
+      "
