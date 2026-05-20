@@ -16,7 +16,6 @@ Proyek ini dirancang dengan standar *enterprise-level data stack* yang mengutama
 
 Pipeline ini menggunakan pendekatan *Modern Data Stack* (MDS) ringan untuk menangani data aliran (*streaming/frequent batch*):
 
-```text
 [OpenWeather API] ──(Ingestion via Python)──> [Prefect Core]
                                                    │
                                             (Data Transformation)
