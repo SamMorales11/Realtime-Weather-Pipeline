@@ -13,9 +13,6 @@ Proyek ini dirancang dengan standar *Modern Data Stack* (MDS) yang mengutamakan 
 
 ## 🏗️ Arsitektur Sistem & Tech Stack
 
-*(Ganti tautan gambar placeholder di bawah ini dengan tautan gambar diagram arsitektur milikmu)*
-![Diagram Arsitektur](https://via.placeholder.com/800x400?text=Masukkan+Foto+Diagram+Arsitektur+Di+Sini)
-
 * **Data Ingestion & API:** Python + Requests (OpenWeather API)
 * **Orchestration & Scheduling:** Prefect
 * **Storage & Query Engine:** Apache Arrow (Parquet) + DuckDB
