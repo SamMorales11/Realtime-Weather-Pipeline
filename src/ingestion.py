@@ -1,83 +1,74 @@
 import os
 import requests
-import logging
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from datetime import datetime
-from pathlib import Path
 from dotenv import load_dotenv
 from prefect import task, flow
 
-# Import fungsi transformasi dari file sebelah
-from transformation import transform_and_save_parquet
+load_dotenv()
+API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-# Setup Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+JAKARTA_REGIONS = {
+    "Jakarta Pusat": {"lat": -6.1805, "lon": 106.8284},
+    "Jakarta Selatan": {"lat": -6.2615, "lon": 106.8106},
+    "Jakarta Barat": {"lat": -6.1683, "lon": 106.7588},
+    "Jakarta Utara": {"lat": -6.1214, "lon": 106.8779},
+    "Jakarta Timur": {"lat": -6.2250, "lon": 106.9004}
+}
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-ENV_PATH = BASE_DIR / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
-
-def get_api_config():
+@task(retries=2, retry_delay_seconds=10)
+def fetch_weather_and_pollution(region_name, coords):
+    # Endpoint Cuaca
+    weather_url = f"https://api.openweathermap.org/data/2.5/weather?lat={coords['lat']}&lon={coords['lon']}&appid={API_KEY}&units=metric"
+    # Endpoint Polusi Udara
+    aqi_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={coords['lat']}&lon={coords['lon']}&appid={API_KEY}"
+    
+    weather_res = requests.get(weather_url).json()
+    aqi_res = requests.get(aqi_url).json()
+    
     return {
-        "API_KEY": os.getenv("OPENWEATHER_API_KEY"),
-        "CITY": os.getenv("CITY_NAME", "Jakarta")
+        "region": region_name,
+        "data_timestamp": pd.to_datetime(weather_res["dt"], unit='s'),
+        "temperature": weather_res["main"]["temp"],
+        "feels_like": weather_res["main"]["feels_like"],
+        "pressure": weather_res["main"]["pressure"],
+        "humidity": weather_res["main"]["humidity"],
+        "wind_speed": weather_res["wind"]["speed"],
+        "weather_main": weather_res["weather"][0]["main"],
+        "weather_desc": weather_res["weather"][0]["description"],
+        "aqi": aqi_res["list"][0]["main"]["aqi"],
+        "pm2_5": aqi_res["list"][0]["components"]["pm2_5"],
+        "pm10": aqi_res["list"][0]["components"]["pm10"]
     }
 
-@task(retries=3, retry_delay_seconds=60, name="Fetch Weather From API")
-def fetch_weather_data():
-    config = get_api_config()
-    api_key = config["API_KEY"]
-    city = config["CITY"]
-
-    if not api_key:
-        raise ValueError("API Key tidak ditemukan! Periksa kembali file .env Anda.")
-
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-    logging.info(f"Memulai pengambilan data cuaca untuk kota: {city}")
-    response = requests.get(url, timeout=10)
-    response.raise_for_status() 
-    return response.json()
-
-@task(name="Save Raw JSON Data")
-def save_raw_data(data):
-    if not data:
-        return
-    config = get_api_config()
-    city = config["CITY"]
+@task
+def process_and_save_parquet(data_list):
+    df = pd.DataFrame(data_list)
+    file_path = "data/processed/weather_analytics.parquet"
     
-    raw_dir = BASE_DIR / "data" / "raw"
-    os.makedirs(raw_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    table = pa.Table.from_pandas(df)
     
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_path = raw_dir / f"weather_{city}_{timestamp}.json"
-    
-    import json
-    with open(file_path, "w") as f:
-        json.dump(data, f, indent=4)
-    
-    logging.info(f"Data mentah berhasil disimpan di: {file_path}")
-    return str(file_path)
+    if os.path.exists(file_path):
+        existing_table = pq.read_table(file_path)
+        # Idempotency check: Hindari duplikasi timestamp untuk region yang sama
+        existing_df = existing_table.to_pandas()
+        merged_df = pd.concat([existing_df, df]).drop_duplicates(subset=['region', 'data_timestamp'], keep='last')
+        final_table = pa.Table.from_pandas(merged_df)
+        pq.write_table(final_table, file_path)
+    else:
+        pq.write_table(table, file_path)
 
-# Kita bungkus fungsi transformasi lama menjadi Prefect Task resmi
-@task(name="Transform JSON to Idempotent Parquet")
-def transform_task():
-    logging.info("Memulai proses transformasi data lake...")
-    transform_and_save_parquet()
-
-@flow(name="End-to-End Weather Data Pipeline")
-def weather_pipeline():
-    """
-    Main Flow tunggal yang mengontrol seluruh siklus data:
-    Fetch API -> Simpan Raw -> Transformasi ke Parquet.
-    """
-    try:
-        raw_data = fetch_weather_data()
-        save_raw_data(raw_data)
-        
-        # Jalankan transformasi langsung setelah data mentah aman
-        transform_task()
-        
-    except Exception as e:
-        logging.error(f"Pipeline gagal dieksekusi: {e}")
+@flow(name="Jakarta_Spatial_Weather_ETL")
+def main_flow():
+    all_data = []
+    for region, coords in JAKARTA_REGIONS.items():
+        data = fetch_weather_and_pollution(region, coords)
+        all_data.append(data)
+    
+    process_and_save_parquet(all_data)
 
 if __name__ == "__main__":
-    weather_pipeline()
+    main_flow()
