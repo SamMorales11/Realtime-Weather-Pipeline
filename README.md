@@ -5,7 +5,7 @@
 [![DuckDB](https://img.shields.io/badge/Analytics-DuckDB-orange.svg?logo=duckdb&logoColor=white)](https://duckdb.org/)
 [![Apache Superset](https://img.shields.io/badge/BI%20Dashboard-Apache%20Superset-red.svg?logo=apachesuperset&logoColor=white)](https://superset.apache.org/)
 
-Repositori ini berisi infrastruktur *data pipeline end-to-end* untuk mengekstraksi data cuaca Jakarta secara *real-time* dari OpenWeather API. Sistem ini diorkestrasi menggunakan **Prefect**, disimpan dalam format *columnar* (**Parquet** & **DuckDB**), dan divisualisasikan menjadi *Command Center* interaktif melalui **Apache Superset**.
+Repositori ini berisi infrastruktur *data pipeline end to end* untuk mengekstraksi data cuaca Jakarta secara *real-time* dari OpenWeather API. Sistem ini diorkestrasi menggunakan **Prefect**, disimpan dalam format *columnar* (**Parquet** & **DuckDB**), dan divisualisasikan menjadi *Command Center* interaktif melalui **Apache Superset**.
 
 Proyek ini dirancang dengan standar *Modern Data Stack* (MDS) yang mengutamakan performa kueri analitik tinggi, idempotensi, dan arsitektur yang terstruktur.
 
