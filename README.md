@@ -65,7 +65,7 @@ Jalankan skrip ini untuk membuat mock data historis 24 jam terakhir agar Superse
 ```bash
 python src/seed_data.py
 ```
-4.2 Menjalankan ETL Real-Time
+4.2 Menjalankan ETL Real Time
 Skrip ini akan mengaktifkan flow Prefect untuk menarik data cuaca terbaru dan memasukkannya ke data lake secara idempotent:
 ```bash
 python src/ingestion.py
