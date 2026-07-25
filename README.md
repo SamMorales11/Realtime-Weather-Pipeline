@@ -81,6 +81,3 @@ Jika Anda menggunakan Docker untuk menjalankan Superset, hidupkan container deng
 docker-compose up -d
 ```
 Setelah sistem online, akses http://localhost:8088, hubungkan ke database DuckDB yang mengarah ke file Parquet kita, dan Command Center Anda siap memantau analitik cuaca secara dinamis!
-
-
-
